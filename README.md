@@ -1,154 +1,145 @@
-# 🚀 Spring Boot Application Deployment on AWS EKS using Jenkins, Terraform, Docker, and ECR
+# 🚀 **Spring Boot Application & Infrastructure Deployment on AWS EKS using Jenkins Pipelines**
 
 ---
 
 ## 📖 **Overview**
-This guide provides a high-level summary of commands and steps used to:
-- Provision infrastructure on AWS using Terraform.
-- Set up CI/CD pipelines using Jenkins.
-- Build and push Docker images to AWS ECR.
-- Deploy the Spring Boot application to AWS EKS.
-- Test auto-scaling and high availability.
+This guide outlines the complete end-to-end deployment of a Spring Boot application on AWS EKS using two separate Jenkins pipelines:
+
+1. **Infrastructure Pipeline:** Provisions AWS resources using Terraform.
+2. **Application Pipeline:** Builds, scans, pushes the Docker image to AWS ECR, and deploys the application to EKS.
+
+Both pipelines are automated, ensuring minimal manual intervention and seamless CI/CD.
 
 ---
 
 ## 📝 **Prerequisites**
-- AWS CLI configured with appropriate credentials.
-- Docker and Kubernetes (kubectl) installed.
-- Jenkins installed and configured.
-- Terraform installed.
-- AWS ECR, VPC, EKS, and IAM roles set up.
+- **AWS CLI**: Configured with appropriate IAM credentials.
+- **Docker**: Installed and running.
+- **Kubernetes CLI (kubectl)**: Installed and configured.
+- **Terraform**: Installed for infrastructure management.
+- **Jenkins**: Set up with necessary plugins for AWS, Docker, and Kubernetes.
+- **AWS Resources**: ECR repository, VPC, EKS Cluster, Node Groups, and IAM roles.
 
 ---
 
-## 🏗️ **Infrastructure Setup with Terraform**
-### 1. **Initialize Terraform:**
+## 🏗️ **1️⃣ Infrastructure Deployment Pipeline (Terraform)**
+This pipeline handles the creation of AWS infrastructure components required for the application.
+
+### 🚦 **Pipeline Stages:**
+1. **Checkout Code**: Pulls Terraform scripts from GitHub.
+2. **Terraform Init**: Initializes Terraform backend and modules.
+3. **Terraform Plan**: Plans the infrastructure changes.
+4. **Terraform Apply**: Applies the planned infrastructure.
+5. **Post Deployment**: Verifies the EKS cluster and VPC setup.
+
+### 🛠️ **Executed Commands:**
 ```bash
 terraform init
-```
-
-### 2. **Validate and Plan Infrastructure:**
-```bash
 terraform validate
 terraform plan -out=tfplan
-```
-
-### 3. **Apply Infrastructure Changes:**
-```bash
 terraform apply tfplan
 ```
 
-### 4. **Verify Resources:**
-- Check VPC, subnets, IAM roles, and EKS cluster on the AWS Console.
-- Confirm successful EKS cluster creation:
+### ✅ **Verification:**
 ```bash
 aws eks describe-cluster --name springboot-eks-cluster --query "cluster.status" --output text
-```
-
----
-
-## 🔑 **Configure kubectl for EKS**
-```bash
 aws eks update-kubeconfig --region us-east-1 --name springboot-eks-cluster
 kubectl get nodes
 ```
 
----
-
-## 📦 **Docker Image Build & Push to AWS ECR**
-### 1. **Authenticate Docker with ECR:**
-```bash
-aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin 528757819999.dkr.ecr.us-east-1.amazonaws.com
-```
-
-### 2. **Build Docker Image:**
-```bash
-docker build -t 528757819999.dkr.ecr.us-east-1.amazonaws.com/springboot-app:latest .
-```
-
-### 3. **Push Docker Image to ECR:**
-```bash
-docker push 528757819999.dkr.ecr.us-east-1.amazonaws.com/springboot-app:latest
-```
+✅ EKS Cluster status should be **ACTIVE** with all nodes in **Ready** state.
 
 ---
 
-## 🧬 **Jenkins Pipeline Setup**
-### 1. **Pipeline Stages Overview:**
-- **Checkout Code**: Pull code from GitHub.
-- **Security Scan**: Scan code using Trivy.
-- **Build & Push Docker Image**: Build and push to ECR.
-- **Deploy to EKS**: Apply Kubernetes manifests.
-- **Post Deployment Verification**: Check pod and service statuses.
+## 📦 **2️⃣ Application Deployment Pipeline (Docker + Kubernetes)**
+This pipeline focuses on building the application, performing security scans, and deploying it to the EKS cluster.
 
-### 2. **Run Jenkins Pipeline:**
-Trigger the Jenkins pipeline via the Jenkins dashboard. It should:
-- Build and push Docker images.
-- Deploy to EKS automatically.
+### 🚦 **Pipeline Stages:**
+1. **Checkout Code**: Retrieves application source code from GitHub.
+2. **Security Scan (Trivy)**: Scans code for vulnerabilities.
+3. **Build & Push Docker Image**: Builds Docker image and pushes to AWS ECR.
+4. **Deploy to EKS**: Deploys the application using Kubernetes manifests.
+5. **Post Deployment Verification**: Ensures application is running and accessible.
 
----
+### 🔑 **Docker Image Build & Push Steps:**
+```bash
+# Login to ECR
+aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin <AWS_ACCOUNT_ID>.dkr.ecr.us-east-1.amazonaws.com
 
-## ☸️ **Kubernetes Deployment**
-### 1. **Apply Kubernetes Manifests:**
+# Build and push Docker image
+docker build -t <AWS_ACCOUNT_ID>.dkr.ecr.us-east-1.amazonaws.com/springboot-app:latest .
+docker push <AWS_ACCOUNT_ID>.dkr.ecr.us-east-1.amazonaws.com/springboot-app:latest
+```
+
+### ☸️ **Deploy Application to EKS:**
 ```bash
 kubectl apply -f deployment.yaml
 kubectl apply -f service.yaml
 ```
 
-### 2. **Verify Deployment:**
+### 🚀 **Verify Application Deployment:**
 ```bash
 kubectl get deployments
 kubectl get pods
-kubectl get svc
-```
-
-### 3. **Check Pod Logs:**
-```bash
-kubectl logs -f <POD_NAME>
-```
-
-### 4. **Check Load Balancer URL:**
-```bash
 kubectl get svc springboot-app
 ```
-Access the application via the **EXTERNAL-IP**.
+✅ Pods should be in **Running** state and a **LoadBalancer** service should provide an **EXTERNAL-IP** for access.
 
 ---
 
-## 🔄 **Auto-Scaling & High Availability**
-### 1. **Terminate an EC2 Instance:**
-Manually terminate an instance to test auto-scaling.
-
-### 2. **Verify Auto-Scaling:**
+## 🔄 **Auto-Scaling & High Availability Test**
+### 🧪 **Steps to Test Auto-Scaling:**
+1. **Manually terminate an EC2 instance:**
 ```bash
 aws ec2 describe-instances --filters "Name=instance-state-name,Values=running" --query "Reservations[].Instances[].[InstanceId,State.Name]" --output table
+aws ec2 terminate-instances --instance-ids <INSTANCE_ID>
+```
+2. **Verify EKS Node Group Auto-Recovery:**
+```bash
 kubectl get nodes
 ```
-
-EKS should automatically provision a replacement node.
+✅ EKS should automatically replace the terminated node.
 
 ---
 
-## 🚀 **Access the Spring Boot Application**
+## 🌐 **Accessing the Spring Boot Application**
+1. **Get the Load Balancer URL:**
 ```bash
 kubectl get svc springboot-app
 ```
-- Use the **EXTERNAL-IP** to access the application in your browser.
-- Example: `http://<EXTERNAL-IP>`
+2. **Access Application:**
+Use the **EXTERNAL-IP** to access the application:
+```
+http://<EXTERNAL-IP>
+```
+✅ Application should be up and accessible in the browser.
+
+---
+
+## 📊 **Architecture Overview**
+```
++----------------+        +---------------------+        +----------------+        +-------------------+
+|  Jenkins CI/CD | -----> | AWS Infrastructure  | -----> | Docker & ECR    | -----> | AWS EKS Cluster    |
++----------------+        +---------------------+        +----------------+        +-------------------+
+      |                                |                             |                          |
+      |                                |                             |                          |
+      |--- Infra Pipeline ------------>|                             |                          |
+      |                                |--- EKS & VPC Setup -------->|                          |
+      |                                |                             |--- Image Pull ---------->|
+      |--- App Pipeline -------------->|                             |                          |
+```
 
 ---
 
 ## 🏆 **Final Notes:**
-✅ End-to-end automation achieved with Jenkins CI/CD.  
-✅ Infrastructure managed via Terraform.  
-✅ Secure image build and deployment pipeline.  
-✅ Auto-healing cluster with EKS Node Group.  
+✅ Fully automated infrastructure and application deployment with Jenkins pipelines.  
+✅ Infrastructure managed with Terraform ensures reproducibility.  
+✅ Continuous integration with Docker and ECR for seamless deployments.  
+✅ High availability and auto-healing enabled via AWS EKS Node Groups.  
 
 ---
 
-## 🙌 **Success! Your Spring Boot application is live and highly available on AWS EKS!** 🎉
-
-
+## 🎉 **Success! Your Spring Boot application is live on AWS EKS with automated CI/CD!** 🚀
 
 
 
