@@ -143,6 +143,199 @@ http://<EXTERNAL-IP>
 
 
 
+# 🚑 **Troubleshooting Guide: AWS EKS Deployment Using Jenkins Pipelines**
+
+This guide details the issues encountered during the end-to-end deployment of infrastructure and a Spring Boot application on AWS EKS using two Jenkins pipelines—one for infrastructure and one for application deployment. Each issue is documented chronologically with its root cause, resolution steps, commands used, and how the problem was resolved.
+
+---
+
+## 🛠️ **1️⃣ Issue: Terraform State File Not Persisting in S3**
+### 📝 **Description:**
+The Terraform state file was not being stored in the configured S3 bucket, causing issues with state management.
+
+### 🔎 **Root Cause:**
+The backend configuration was not correctly initialized with S3 and DynamoDB, and the state file was being stored locally instead.
+
+### 🚫 **Error Message:**
+```
+No state file was found!
+```
+
+### 🩹 **Solution Steps:**
+1. Verified S3 bucket and DynamoDB table creation.
+2. Re-initialized Terraform with the `-reconfigure` flag to set the backend.
+3. Manually uploaded the `terraform.tfstate` file to S3.
+
+### ✅ **Commands Used:**
+```bash
+terraform init -reconfigure
+aws s3 cp terraform.tfstate s3://<BUCKET_NAME>/terraform/statefile.tfstate
+terraform state list
+```
+
+---
+
+## 🛠️ **2️⃣ Issue: Jenkins Pipeline - Trivy Installation Permission Denied**
+### 📝 **Description:**
+The security scan stage in the Jenkins pipeline failed due to Trivy installation permission issues.
+
+### 🔎 **Root Cause:**
+Jenkins did not have write permissions to `/usr/local/bin/`, the default installation path.
+
+### 🚫 **Error Message:**
+```
+install: /usr/local/bin/trivy: Permission denied
+```
+
+### 🩹 **Solution Steps:**
+- Changed the installation path to `/tmp`, which Jenkins had permissions to write to.
+
+### ✅ **Updated Jenkinsfile Snippet:**
+```bash
+export TRIVY_PATH="/tmp/trivy"
+curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sh -s -- -b /tmp
+```
+
+---
+
+## 🛠️ **3️⃣ Issue: Docker Image Build Failure - JAR File Not Found**
+### 📝 **Description:**
+The Docker build failed due to the absence of the Spring Boot JAR file.
+
+### 🔎 **Root Cause:**
+The Maven build stage was skipped, resulting in the `target/` directory not having the required JAR.
+
+### 🚫 **Error Message:**
+```
+COPY failed: stat target/spring-petclinic-*.jar: no such file or directory
+```
+
+### 🩹 **Solution Steps:**
+1. Added a Maven build stage in the Jenkins pipeline.
+2. Verified the JAR file was generated in the `target/` directory.
+
+### ✅ **Commands Used:**
+```bash
+mvn clean package -DskipTests
+ls target/
+```
+
+---
+
+## 🛠️ **4️⃣ Issue: Docker Image Push to ECR Fails - Access Denied**
+### 📝 **Description:**
+Docker push to AWS ECR was failing with an authentication error.
+
+### 🔎 **Root Cause:**
+The IAM user used by Jenkins lacked the necessary ECR permissions.
+
+### 🚫 **Error Message:**
+```
+unauthorized: authentication required
+```
+
+### 🩹 **Solution Steps:**
+1. Attached the `AmazonEC2ContainerRegistryFullAccess` policy to the IAM user.
+2. Re-authenticated Docker with ECR.
+
+### ✅ **Commands Used:**
+```bash
+aws iam attach-user-policy --user-name <IAM_USER> --policy-arn arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryFullAccess
+aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin <ECR_REPO>
+```
+
+---
+
+## 🛠️ **5️⃣ Issue: ImagePullBackOff in Kubernetes Pods**
+### 📝 **Description:**
+Pods failed to pull the Docker image from ECR, preventing deployment.
+
+### 🔎 **Root Cause:**
+Kubernetes could not authenticate with ECR due to a missing `imagePullSecret`.
+
+### 🚫 **Error Message:**
+```
+Failed to pull image: no match for platform in manifest: not found
+ImagePullBackOff
+```
+
+### 🩹 **Solution Steps:**
+1. Created an ECR pull secret.
+2. Linked the secret to the default service account.
+3. Restarted the deployment to pull the image successfully.
+
+### ✅ **Commands Used:**
+```bash
+kubectl create secret docker-registry ecr-secret \
+  --docker-server=<AWS_ACCOUNT_ID>.dkr.ecr.us-east-1.amazonaws.com \
+  --docker-username=AWS \
+  --docker-password=$(aws ecr get-login-password --region us-east-1)
+
+kubectl patch serviceaccount default -p '{"imagePullSecrets": [{"name": "ecr-secret"}]}'
+kubectl rollout restart deployment springboot-app
+```
+
+---
+
+## 🛠️ **6️⃣ Issue: EKS Connection Issues - Cluster Endpoint Not Reachable**
+### 📝 **Description:**
+Commands interacting with the Kubernetes cluster failed due to endpoint issues.
+
+### 🔎 **Root Cause:**
+The kubeconfig context was outdated, and the client could not resolve the EKS cluster endpoint.
+
+### 🚫 **Error Message:**
+```
+dial tcp: lookup <EKS_ENDPOINT>: no such host
+```
+
+### 🩹 **Solution Steps:**
+1. Updated the kubeconfig to refresh cluster credentials.
+2. Confirmed cluster status was `ACTIVE`.
+
+### ✅ **Commands Used:**
+```bash
+aws eks update-kubeconfig --region us-east-1 --name springboot-eks-cluster
+kubectl get nodes
+aws eks describe-cluster --name springboot-eks-cluster --query "cluster.status" --output text
+```
+
+---
+
+## 🛠️ **7️⃣ Issue: Auto-Scaling Validation Post EC2 Termination**
+### 📝 **Description:**
+An EC2 instance was manually terminated to verify EKS node group auto-scaling functionality.
+
+### 🔎 **Root Cause:**
+Testing EKS auto-scaling behavior to ensure resilience in case of node failures.
+
+### 🩹 **Solution Steps:**
+1. Terminated a node from the EC2 console.
+2. Verified that the node group auto-provisioned a new instance.
+
+### ✅ **Commands Used:**
+```bash
+aws ec2 describe-instances --filters "Name=instance-state-name,Values=running" --query "Reservations[].Instances[].[InstanceId,State.Name]" --output table
+aws ec2 terminate-instances --instance-ids <INSTANCE_ID>
+kubectl get nodes
+```
+✅ New node successfully joined the cluster.
+
+---
+
+## 🏆 **Final Thoughts:**
+✅ All issues were resolved systematically with root causes analyzed and documented.
+✅ Jenkins pipelines are now fully automated for both infrastructure and application deployments.
+✅ EKS cluster is resilient with auto-scaling and seamless deployments.
+
+---
+
+🎉 **Deployment and troubleshooting successfully completed!** 🚀
+
+
+
+
+
 # Spring PetClinic Sample Application [![Build Status](https://github.com/spring-projects/spring-petclinic/actions/workflows/maven-build.yml/badge.svg)](https://github.com/spring-projects/spring-petclinic/actions/workflows/maven-build.yml)[![Build Status](https://github.com/spring-projects/spring-petclinic/actions/workflows/gradle-build.yml/badge.svg)](https://github.com/spring-projects/spring-petclinic/actions/workflows/gradle-build.yml)
 
 [![Open in Gitpod](https://gitpod.io/button/open-in-gitpod.svg)](https://gitpod.io/#https://github.com/spring-projects/spring-petclinic) [![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://github.com/codespaces/new?hide_repo_select=true&ref=main&repo=7517918)
