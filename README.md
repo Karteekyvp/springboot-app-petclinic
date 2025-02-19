@@ -1,3 +1,157 @@
+# 🚀 Spring Boot Application Deployment on AWS EKS using Jenkins, Terraform, Docker, and ECR
+
+---
+
+## 📖 **Overview**
+This guide provides a high-level summary of commands and steps used to:
+- Provision infrastructure on AWS using Terraform.
+- Set up CI/CD pipelines using Jenkins.
+- Build and push Docker images to AWS ECR.
+- Deploy the Spring Boot application to AWS EKS.
+- Test auto-scaling and high availability.
+
+---
+
+## 📝 **Prerequisites**
+- AWS CLI configured with appropriate credentials.
+- Docker and Kubernetes (kubectl) installed.
+- Jenkins installed and configured.
+- Terraform installed.
+- AWS ECR, VPC, EKS, and IAM roles set up.
+
+---
+
+## 🏗️ **Infrastructure Setup with Terraform**
+### 1. **Initialize Terraform:**
+```bash
+terraform init
+```
+
+### 2. **Validate and Plan Infrastructure:**
+```bash
+terraform validate
+terraform plan -out=tfplan
+```
+
+### 3. **Apply Infrastructure Changes:**
+```bash
+terraform apply tfplan
+```
+
+### 4. **Verify Resources:**
+- Check VPC, subnets, IAM roles, and EKS cluster on the AWS Console.
+- Confirm successful EKS cluster creation:
+```bash
+aws eks describe-cluster --name springboot-eks-cluster --query "cluster.status" --output text
+```
+
+---
+
+## 🔑 **Configure kubectl for EKS**
+```bash
+aws eks update-kubeconfig --region us-east-1 --name springboot-eks-cluster
+kubectl get nodes
+```
+
+---
+
+## 📦 **Docker Image Build & Push to AWS ECR**
+### 1. **Authenticate Docker with ECR:**
+```bash
+aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin 528757819999.dkr.ecr.us-east-1.amazonaws.com
+```
+
+### 2. **Build Docker Image:**
+```bash
+docker build -t 528757819999.dkr.ecr.us-east-1.amazonaws.com/springboot-app:latest .
+```
+
+### 3. **Push Docker Image to ECR:**
+```bash
+docker push 528757819999.dkr.ecr.us-east-1.amazonaws.com/springboot-app:latest
+```
+
+---
+
+## 🧬 **Jenkins Pipeline Setup**
+### 1. **Pipeline Stages Overview:**
+- **Checkout Code**: Pull code from GitHub.
+- **Security Scan**: Scan code using Trivy.
+- **Build & Push Docker Image**: Build and push to ECR.
+- **Deploy to EKS**: Apply Kubernetes manifests.
+- **Post Deployment Verification**: Check pod and service statuses.
+
+### 2. **Run Jenkins Pipeline:**
+Trigger the Jenkins pipeline via the Jenkins dashboard. It should:
+- Build and push Docker images.
+- Deploy to EKS automatically.
+
+---
+
+## ☸️ **Kubernetes Deployment**
+### 1. **Apply Kubernetes Manifests:**
+```bash
+kubectl apply -f deployment.yaml
+kubectl apply -f service.yaml
+```
+
+### 2. **Verify Deployment:**
+```bash
+kubectl get deployments
+kubectl get pods
+kubectl get svc
+```
+
+### 3. **Check Pod Logs:**
+```bash
+kubectl logs -f <POD_NAME>
+```
+
+### 4. **Check Load Balancer URL:**
+```bash
+kubectl get svc springboot-app
+```
+Access the application via the **EXTERNAL-IP**.
+
+---
+
+## 🔄 **Auto-Scaling & High Availability**
+### 1. **Terminate an EC2 Instance:**
+Manually terminate an instance to test auto-scaling.
+
+### 2. **Verify Auto-Scaling:**
+```bash
+aws ec2 describe-instances --filters "Name=instance-state-name,Values=running" --query "Reservations[].Instances[].[InstanceId,State.Name]" --output table
+kubectl get nodes
+```
+
+EKS should automatically provision a replacement node.
+
+---
+
+## 🚀 **Access the Spring Boot Application**
+```bash
+kubectl get svc springboot-app
+```
+- Use the **EXTERNAL-IP** to access the application in your browser.
+- Example: `http://<EXTERNAL-IP>`
+
+---
+
+## 🏆 **Final Notes:**
+✅ End-to-end automation achieved with Jenkins CI/CD.  
+✅ Infrastructure managed via Terraform.  
+✅ Secure image build and deployment pipeline.  
+✅ Auto-healing cluster with EKS Node Group.  
+
+---
+
+## 🙌 **Success! Your Spring Boot application is live and highly available on AWS EKS!** 🎉
+
+
+
+
+
 # Spring PetClinic Sample Application [![Build Status](https://github.com/spring-projects/spring-petclinic/actions/workflows/maven-build.yml/badge.svg)](https://github.com/spring-projects/spring-petclinic/actions/workflows/maven-build.yml)[![Build Status](https://github.com/spring-projects/spring-petclinic/actions/workflows/gradle-build.yml/badge.svg)](https://github.com/spring-projects/spring-petclinic/actions/workflows/gradle-build.yml)
 
 [![Open in Gitpod](https://gitpod.io/button/open-in-gitpod.svg)](https://gitpod.io/#https://github.com/spring-projects/spring-petclinic) [![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://github.com/codespaces/new?hide_repo_select=true&ref=main&repo=7517918)
