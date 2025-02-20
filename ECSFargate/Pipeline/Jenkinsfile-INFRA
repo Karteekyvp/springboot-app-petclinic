@@ -45,10 +45,25 @@ pipeline {
             }
         }
 
+        stage('Terraform Import Existing Resources') {
+            steps {
+                sh '''
+                cd ECSFargate/infra
+
+                echo "Importing S3 bucket into Terraform state..."
+                terraform state list | grep module.s3_backend.aws_s3_bucket.terraform_state >/dev/null 2>&1 || \
+                  terraform import module.s3_backend.aws_s3_bucket.terraform_state $S3_BUCKET
+
+                echo "Importing DynamoDB table into Terraform state..."
+                terraform state list | grep module.s3_backend.aws_dynamodb_table.terraform_lock >/dev/null 2>&1 || \
+                  terraform import module.s3_backend.aws_dynamodb_table.terraform_lock $DYNAMODB_TABLE
+                '''
+            }
+        }
+
         stage('Terraform Init') {
             steps {
                 sh '''
-                terraform --version
                 cd ECSFargate/infra
                 terraform init
                 '''
