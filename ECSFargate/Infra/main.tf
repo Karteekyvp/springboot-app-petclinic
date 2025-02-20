@@ -48,3 +48,22 @@ module "ecr" {
   depends_on      = [module.s3_backend]
 }
 
+module "ecs" {
+  source            = "./modules/ecs"
+  cluster_name      = "ecs-fargate-cluster"
+  task_name         = "springboot-petclinic-task"
+  container_name    = "springboot-petclinic-container"
+  container_port    = 8080
+  ecr_repository_url = module.ecr.repository_url
+  vpc_id            = module.network.vpc_id
+  subnet_ids        = module.network.public_subnet_ids
+  security_group_id = module.network.ecs_security_group_id
+  depends_on        = [module.ecr, module.network]
+}
+
+module "sns" {
+  source        = "./modules/sns"
+  topic_name    = "deployment-notification-topic"
+  email_address = "your-email@example.com"  # Replace with your email
+  depends_on    = [module.s3_backend]
+}
