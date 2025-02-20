@@ -3,7 +3,7 @@ pipeline {
 
     environment {
         AWS_REGION = 'us-east-1'
-        S3_BUCKET = 'your-terraform-KarMeg061122110203ram'       // Replace with your bucket name
+        S3_BUCKET = 'your-terraform-karrammeg061122110203'       // Replace with your bucket name
         DYNAMODB_TABLE = 'terraform-lock-table'
     }
 

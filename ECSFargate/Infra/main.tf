@@ -1,6 +1,6 @@
 module "s3_backend" {
   source              = "./modules/s3_backend"
-  bucket_name         = "your-terraform-KarMeg061122110203ram"
+  bucket_name         = "your-terraform-karrammeg061122110203"
   dynamodb_table_name = "terraform-lock-table"
 }
 
