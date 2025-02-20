@@ -2,7 +2,7 @@ terraform {
   required_version = ">= 1.0.0"
 
   backend "s3" {
-    bucket         = "your-terraform-MeghanaKarteek061122110203"  # Will be created in s3_backend module
+    bucket         = "your-terraform-karrammeg061122110203"  # Will be created in s3_backend module
     key            = "ecs-fargate/terraform.tfstate"
     region         = "us-east-1"
     dynamodb_table = "terraform-lock-table"          # Created in s3_backend module
