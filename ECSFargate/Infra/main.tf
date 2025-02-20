@@ -67,3 +67,18 @@ module "sns" {
   email_address = "your-email@example.com"  # Replace with your email
   depends_on    = [module.s3_backend]
 }
+
+module "lambda" {
+  source                = "./modules/lambda"
+  lambda_function_name  = "deployment-notification-lambda"
+  sns_topic_arn         = module.sns.sns_topic_arn
+  depends_on            = [module.sns]
+}
+module "eventbridge" {
+  source              = "./modules/eventbridge"
+  event_rule_name     = "ecs-deployment-success-rule"
+  lambda_function_arn = module.lambda.lambda_function_arn
+  ecs_cluster_arn     = module.ecs.ecs_cluster_id
+  ecs_service_name    = module.ecs.ecs_service_name
+  depends_on          = [module.lambda, module.ecs]
+}
