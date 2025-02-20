@@ -22,7 +22,11 @@ pipeline {
                   echo "S3 bucket already exists."
                 else
                   echo "Creating S3 bucket: $S3_BUCKET"
-                  aws s3api create-bucket --bucket $S3_BUCKET --region $AWS_REGION --create-bucket-configuration LocationConstraint=$AWS_REGION
+                  if [ "$AWS_REGION" = "us-east-1" ]; then
+                    aws s3api create-bucket --bucket $S3_BUCKET --region $AWS_REGION
+                  else
+                    aws s3api create-bucket --bucket $S3_BUCKET --region $AWS_REGION --create-bucket-configuration LocationConstraint=$AWS_REGION
+                  fi
                   aws s3api put-bucket-versioning --bucket $S3_BUCKET --versioning-configuration Status=Enabled
                 fi
 
