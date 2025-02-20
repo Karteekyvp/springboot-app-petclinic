@@ -16,7 +16,7 @@ pipeline {
             steps {
                 sh '''
                 terraform --version
-                cd infra
+                cd ECSFargate/infra
                 terraform init
                 '''
             }
@@ -25,7 +25,7 @@ pipeline {
         stage('Terraform Plan') {
             steps {
                 sh '''
-                cd infra
+                cd ECSFargate/infra
                 terraform plan -out=tfplan
                 '''
             }
@@ -35,7 +35,7 @@ pipeline {
             steps {
                 input message: "Approve Terraform Apply?"
                 sh '''
-                cd infra
+                cd ECSFargate/infra
                 terraform apply -auto-approve tfplan
                 '''
             }
