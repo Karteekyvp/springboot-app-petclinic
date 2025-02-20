@@ -1,6 +1,6 @@
 module "s3_backend" {
   source              = "./modules/s3_backend"
-  bucket_name         = "your-terraform-state-bucket"
+  bucket_name         = "your-terraform-KarMeg061122110203ram"
   dynamodb_table_name = "terraform-lock-table"
 }
 
@@ -35,7 +35,7 @@ module "ecs" {
 module "sns" {
   source        = "./modules/sns"
   topic_name    = "deployment-notification-topic"
-  email_address = "your-email@example.com"  # Replace with your email
+  email_address = "yvpkarteek@gmail.com"  # Replace with your email
   depends_on    = [module.s3_backend]
 }
 
