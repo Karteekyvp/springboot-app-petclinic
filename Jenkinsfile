@@ -7,11 +7,6 @@ pipeline {
     }
 
     stages {
-        stage('Clone Repository') {
-            steps {
-                git 'https://github.com/Karteekyvp/springboot-app-petclinic.git'
-            }
-        }
 
         stage('Build with Maven') {
             steps {
