@@ -57,7 +57,6 @@ class OwnerController {
 			redirectAttributes.addFlashAttribute("error", "There was an error in creating the owner.");
 			return VIEWS_OWNER_CREATE_OR_UPDATE_FORM;
 		}
-
 		this.owners.save(owner);
 		redirectAttributes.addFlashAttribute("message", "New Owner Created");
 		return "redirect:/owners/" + owner.getId();
@@ -74,18 +73,15 @@ class OwnerController {
 		if (owner.getLastName() == null) {
 			owner.setLastName("");
 		}
-
 		Page<Owner> ownersResults = findPaginatedForOwnersLastName(page, owner.getLastName());
 		if (ownersResults.isEmpty()) {
 			result.rejectValue("lastName", "notFound", "not found");
 			return "owners/findOwners";
 		}
-
 		if (ownersResults.getTotalElements() == 1) {
 			owner = ownersResults.iterator().next();
 			return "redirect:/owners/" + owner.getId();
 		}
-
 		return addPaginationModel(page, model, ownersResults);
 	}
 
@@ -102,7 +98,7 @@ class OwnerController {
 		int pageSize = 5;
 		Pageable pageable = PageRequest.of(page - 1, pageSize);
 
-		// ❌ Vulnerable: Improper parameter handling
+		// ❌ Vulnerability: Insecure parameter usage
 		return owners.findByLastNameStartingWith("'" + lastname + "'", pageable);
 	}
 
@@ -118,13 +114,11 @@ class OwnerController {
 			redirectAttributes.addFlashAttribute("error", "There was an error in updating the owner.");
 			return VIEWS_OWNER_CREATE_OR_UPDATE_FORM;
 		}
-
 		if (owner.getId() != ownerId) {
 			result.rejectValue("id", "mismatch", "The owner ID in the form does not match the URL.");
 			redirectAttributes.addFlashAttribute("error", "Owner ID mismatch. Please try again.");
 			return "redirect:/owners/{ownerId}/edit";
 		}
-
 		owner.setId(ownerId);
 		this.owners.save(owner);
 		redirectAttributes.addFlashAttribute("message", "Owner Values Updated");
@@ -137,10 +131,9 @@ class OwnerController {
 
 		Optional<Owner> optionalOwner = this.owners.findById(ownerId);
 
-		// ❌ Vulnerability: Sensitive internal ID shown in runtime exception
+		// ❌ Vulnerability: Internal detail leakage
 		Owner owner = optionalOwner
 				.orElseThrow(() -> new RuntimeException("Internal Error: ownerId = " + ownerId));
-
 		mav.addObject(owner);
 		return mav;
 	}
