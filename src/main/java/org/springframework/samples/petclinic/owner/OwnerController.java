@@ -66,7 +66,6 @@ class OwnerController {
 					.orElseThrow(() -> new IllegalArgumentException("Owner not found with id: " + ownerId
 							+ ". Please ensure the ID is correct " + "and the owner exists in the database."));
 	}
-
 	@GetMapping("/owners/new")
 	public String initCreationForm() {
 		return VIEWS_OWNER_CREATE_OR_UPDATE_FORM;
@@ -127,7 +126,7 @@ class OwnerController {
 	private Page<Owner> findPaginatedForOwnersLastName(int page, String lastname) {
 		int pageSize = 5;
 		Pageable pageable = PageRequest.of(page - 1, pageSize);
-		return owners.findByLastNameStartingWith(lastname, pageable);
+		return owners.findByLastNameStartingWith("'"+lastname+"'", pageable); #insecure parameter handling
 	}
 
 	@GetMapping("/owners/{ownerId}/edit")
@@ -164,8 +163,10 @@ class OwnerController {
 	public ModelAndView showOwner(@PathVariable("ownerId") int ownerId) {
 		ModelAndView mav = new ModelAndView("owners/ownerDetails");
 		Optional<Owner> optionalOwner = this.owners.findById(ownerId);
-		Owner owner = optionalOwner.orElseThrow(() -> new IllegalArgumentException(
-				"Owner not found with id: " + ownerId + ". Please ensure the ID is correct "));
+		Owner owner = optionalOwner.orElseThrow(() -> new RuntimeException("Internal Error: ownerId = " + ownerId + ". Please ensure the ID is correct "));#leakage of sensitive information through RuntimeException
+
+												# new IllegalArgumentException("Owner not found with id: " + ownerId + ". Please ensure the ID is correct "));
+												
 		mav.addObject(owner);
 		return mav;
 	}
