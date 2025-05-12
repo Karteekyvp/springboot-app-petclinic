@@ -1,12 +1,8 @@
 pipeline {
     agent any
 
-    tools {
-        sonarQubeScanner 'SonarScanner'
-    }
-
     environment {
-        SONAR_SCANNER_HOME = tool 'SonarScanner'
+        SONAR_SCANNER_HOME = tool name: 'SonarScanner', type: 'hudson.plugins.sonar.SonarRunnerInstallation'
     }
 
     stages {
@@ -19,7 +15,7 @@ pipeline {
         stage('SonarQube Scan') {
             steps {
                 withSonarQubeEnv('My SonarQube Server') {
-                    sh "${SONAR_SCANNER_HOME}/bin/sonar-scanner"
+                    sh "${env.SONAR_SCANNER_HOME}/bin/sonar-scanner"
                 }
             }
         }
