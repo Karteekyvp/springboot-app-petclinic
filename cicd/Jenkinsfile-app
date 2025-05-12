@@ -3,15 +3,16 @@ pipeline {
 
     environment {
         AWS_REGION = 'us-east-1'
-        ECR_REPO = '528757819999.dkr.ecr.us-east-1.amazonaws.com/springboot-app'
-        K8S_NAMESPACE = 'default'
+        ECR_REPO = '499075732001.dkr.ecr.us-east-1.amazonaws.com/cicddemo/petclinic-repo'
         IMAGE_TAG = 'latest'
+        EC2_HOST = 'ec2-user@54.226.138.65'
+        SSH_KEY_ID = 'EC2_SSH_KEY' // Jenkins credential ID for your EC2 SSH private key
     }
 
     stages {
         stage('Checkout Code') {
             steps {
-                git branch: 'main', url: 'https://github.com/meghana-boda0611/spring-petclinic.git'
+                git branch: 'main', url: 'https://github.com/Karteekyvp/springboot-app-petclinic.git'
             }
         }
 
@@ -21,34 +22,26 @@ pipeline {
                     sh '''
                     echo "▶️ Running Security Scan with Trivy..."
 
-                    # Define a user-writable directory for Trivy installation
                     export TRIVY_PATH="$WORKSPACE/trivy"
-                    
-                    # Install Trivy if not already installed
                     if ! [ -x "$TRIVY_PATH" ]; then
                         curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sh -s -- -b $WORKSPACE
                     fi
 
-                    # Run security scan using the local Trivy binary
                     $TRIVY_PATH fs --exit-code 0 --severity HIGH,CRITICAL .
                     '''
                 }
             }
         }
 
-
         stage('Build Spring Boot Application') {
             steps {
                 script {
                     sh '''
                     echo "▶️ Building Spring Boot Application..."
-                    # Ensure Java and Maven are available
-                    java -version || { echo "❌ ERROR: Java is not installed!"; exit 1; }
-                    mvn -version || { echo "❌ ERROR: Maven is not installed!"; exit 1; }
+                    java -version || { echo "❌ Java not installed!"; exit 1; }
+                    mvn -version || { echo "❌ Maven not installed!"; exit 1; }
 
-                    # Build Spring Boot JAR (skip Checkstyle validation)
                     mvn clean package -DskipTests -Dcheckstyle.skip=true
-
                     echo "✅ Spring Boot application built successfully!"
                     '''
                 }
@@ -60,45 +53,44 @@ pipeline {
                 script {
                     withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'AWS_Credentials']]) {
                         sh '''
-                        echo "▶️ Ensuring Docker Buildx is enabled..."
-                        docker buildx create --use || true
-
                         echo "▶️ Logging into AWS ECR..."
                         aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $ECR_REPO
 
-                        echo "▶️ Building Multi-Platform Docker Image..."
-                        docker buildx build --platform linux/amd64 -t $ECR_REPO:$IMAGE_TAG --push .
+                        echo "▶️ Building Docker Image..."
+                        docker build -t $ECR_REPO:$IMAGE_TAG .
+                        docker push $ECR_REPO:$IMAGE_TAG
 
-                        echo "✅ Docker image pushed successfully!"
+                        echo "✅ Docker image pushed to ECR."
                         '''
                     }
                 }
             }
         }
 
-        stage('Update Kubernetes Deployment') {
+        stage('Deploy to EC2') {
             steps {
                 script {
-                    withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'AWS_Credentials']]) {
+                    sshagent(credentials: [SSH_KEY_ID]) {
                         sh '''
-                        echo "▶️ Creating/Updating Kubernetes ECR Secret..."
-                        kubectl delete secret ecr-secret --ignore-not-found
-                        aws ecr get-login-password --region $AWS_REGION | kubectl create secret docker-registry ecr-secret \
-                        --docker-server=$ECR_REPO \
-                        --docker-username=AWS \
-                        --docker-password="$(aws ecr get-login-password --region $AWS_REGION)"
+                        echo "▶️ Deploying on EC2 Instance..."
 
-                        echo "▶️ Applying Kubernetes Deployment and Service..."
-                        kubectl apply -f deployment.yaml
-                        kubectl apply -f service.yaml
+                        ssh -o StrictHostKeyChecking=no $EC2_HOST << EOF
+                            echo "🛑 Stopping old container..."
+                            docker stop springboot-app || true
+                            docker rm springboot-app || true
 
-                        echo "▶️ Updating Image in Deployment..."
-                        kubectl set image deployment/springboot-app springboot-app=$ECR_REPO:$IMAGE_TAG -n $K8S_NAMESPACE
+                            echo "🧼 Cleaning old image..."
+                            docker rmi $ECR_REPO:$IMAGE_TAG || true
 
-                        echo "▶️ Restarting Deployment to Apply Changes..."
-                        kubectl rollout restart deployment/springboot-app
+                            echo "🔐 Logging in to ECR..."
+                            aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $ECR_REPO
 
-                        echo "✅ Kubernetes deployment updated successfully!"
+                            echo "⬇️ Pulling latest image..."
+                            docker pull $ECR_REPO:$IMAGE_TAG
+
+                            echo "🚀 Starting new container..."
+                            docker run -d --name springboot-app -p 8080:8080 $ECR_REPO:$IMAGE_TAG
+                        EOF
                         '''
                     }
                 }
@@ -108,11 +100,10 @@ pipeline {
 
     post {
         success {
-            echo "✅ Deployment successful!"
+            echo "✅ EC2 Deployment successful!"
         }
         failure {
             echo "❌ Deployment failed. Check logs!"
         }
     }
 }
-
