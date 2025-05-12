@@ -1,21 +1,26 @@
 pipeline {
     agent any
 
+    tools {
+        // Use the correct tool type for SonarQube scanner
+        SonarRunner 'SonarScanner'  // Ensure SonarScanner tool is correctly configured in Jenkins
+    }
+
     environment {
-        // Set any environment variables if needed
+        SONAR_SCANNER_HOME = tool 'SonarScanner'  // Use this tool in the pipeline
     }
 
     stages {
-        stage('Checkout Code') {
+        stage('Clone GitHub Repo') {
             steps {
-                git credentialsId: 'github-credentials', url: 'https://github.com/Karteekyvp/springboot-app-petclinic.git'
+                git credentialsId: 'github-creds', url: 'https://github.com/Karteekyvp/springboot-app-petclinic.git'
             }
         }
 
-        stage('SonarQube Analysis') {
+        stage('SonarQube Scan') {
             steps {
-                withSonarQubeEnv('MySonarQube') {
-                    sh 'sonar-scanner'
+                withSonarQubeEnv('My SonarQube Server') {  // Ensure 'My SonarQube Server' is the correct configuration name
+                    sh "${SONAR_SCANNER_HOME}/bin/sonar-scanner"
                 }
             }
         }
