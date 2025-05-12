@@ -16,7 +16,7 @@ pipeline {
         stage('SonarQube Scan') {
             steps {
                 withSonarQubeEnv('My SonarQube Server') {  // Ensure 'My SonarQube Server' is the correct configuration name
-                    sh "${SONAR_SCANNER_HOME}/bin/sonar-scanner"
+                    bat "\"${SONAR_SCANNER_HOME}\\bin\\sonar-scanner\""
                 }
             }
         }
