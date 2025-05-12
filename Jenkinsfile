@@ -9,7 +9,7 @@ pipeline {
     stages {
         stage('Clone GitHub Repo') {
             steps {
-               git branch: 'main', git credentialsId: 'github-creds', url: 'https://github.com/Karteekyvp/springboot-app-petclinic.git'
+               git branch: 'main', url: 'https://github.com/Karteekyvp/springboot-app-petclinic.git'
             }
         }
 
