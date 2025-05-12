@@ -1,25 +1,21 @@
 pipeline {
     agent any
 
-    tools {
-        sonarQubeScanner 'SonarScanner'
-    }
-
     environment {
-        SONAR_SCANNER_HOME = tool 'SonarScanner'
+        // Set any environment variables if needed
     }
 
     stages {
-        stage('Clone GitHub Repo') {
+        stage('Checkout Code') {
             steps {
-                git branch: 'main', credentialsId: 'github-creds', url: 'https://github.com/Karteekyvp/springboot-app-petclinic.git'
+                git credentialsId: 'github-credentials', url: 'https://github.com/Karteekyvp/springboot-app-petclinic.git'
             }
         }
 
-        stage('SonarQube Scan') {
+        stage('SonarQube Analysis') {
             steps {
-                withSonarQubeEnv('My SonarQube Server') {
-                    sh "${SONAR_SCANNER_HOME}/bin/sonar-scanner"
+                withSonarQubeEnv('MySonarQube') {
+                    sh 'sonar-scanner'
                 }
             }
         }
