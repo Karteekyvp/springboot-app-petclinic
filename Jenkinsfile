@@ -1,10 +1,6 @@
 pipeline {
     agent any
 
-    tools {
-        // Use the correct tool type for SonarQube scanner
-        SonarRunner 'SonarScanner'  // Ensure SonarScanner tool is correctly configured in Jenkins
-    }
 
     environment {
         SONAR_SCANNER_HOME = tool 'SonarScanner'  // Use this tool in the pipeline
