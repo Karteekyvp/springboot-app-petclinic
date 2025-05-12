@@ -6,7 +6,7 @@ pipeline {
         ECR_REPO = '499075732001.dkr.ecr.us-east-1.amazonaws.com/cicddemo/petclinic-repo'
         IMAGE_TAG = 'latest'
         EC2_HOST = 'ec2-user@54.226.138.65'
-        SSH_KEY_ID = 'EC2_SSH_KEY' // Jenkins credential ID for your EC2 SSH private key
+        SSH_KEY_ID = 'ec2_ssh_key' // Jenkins credential ID for your EC2 SSH private key
     }
 
     stages {
