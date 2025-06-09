@@ -15,9 +15,10 @@ pipeline {
     stages {
         stage('Checkout') {
             steps {
-                git credentialsId: 'github-creds', url: 'https://github.com/Karteekyvp/springboot-app-petclinic.git'
+                git branch: 'main', url: 'https://github.com/Karteekyvp/springboot-app-petclinic.git'
             }
         }
+
 
         stage('Build') {
             steps {
