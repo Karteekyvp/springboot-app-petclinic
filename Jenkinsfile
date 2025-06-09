@@ -22,7 +22,7 @@ pipeline {
 
         stage('Build') {
             steps {
-                sh 'mvn clean install -DskipFormat'
+                sh 'mvn spring-javaformat:apply clean install'
             }
         }
 
